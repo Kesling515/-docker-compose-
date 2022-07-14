@@ -1,0 +1,145 @@
+version: '3'
+
+services:
+  mysql:
+    image: mysql:5.7.18
+    container_name: mysql5.7
+    restart: always
+    volumes:
+      - ./mysql5.7/mydir:/mydir
+      - ./mysql5.7/data:/var/lib/mysql
+      - ./mysql5.7/conf/my.cnf:/etc/my.cnf
+      - ./mysql5.7/source:/docker-entrypoint-initdb.d/
+    environment:
+      - MYSQL_ROOT_PASSWORD=bgi123456!@#
+      - TZ=Asia/Shanghai
+    ports:
+      - 3306:3306
+
+  redis:
+    image: redis:4.0.1
+    container_name: redis4.0.1
+    restart: always
+    volumes:
+      - ./redis/data:/data
+      - ./redis/conf/redis.conf:/usr/local/etc/redis/redis.conf
+      - ./redis/logs:/logs
+    command: redis-server --requirepass bgi123456!@#
+    ports:
+      - 6379:6379
+
+  nacos:
+    image: nacos/nacos-server:2.0.3
+    container_name: nacos2.0.3
+    restart: always
+    depends_on:
+      - mysql
+    ports:
+      - 8848:8848
+      - 9848:9848
+      - 9849:9849
+    environment:
+      - JVM_XMS=128m
+      - JVM_XMX=128m
+      - MODE=standalone
+      - PREFER_HOST_MODE=hostname
+      - SPRING_DATASOURCE_PLATFORM=mysql
+      - NACOS_AUTH_ENABLE=true
+      - MYSQL_SERVICE_HOST=47.106.15.219
+      - MYSQL_SERVICE_DB_NAME=mgi-ry-config
+      - MYSQL_SERVICE_USER=root
+      - MYSQL_SERVICE_PASSWORD=bgi123456!@#
+      - MYSQL_SERVICE_PORT=3306
+      - MYSQL_SERVICE_DB_PARAM=characterEncoding=utf8&connectTimeout=1000&socketTimeout=3000&autoReconnect=true&useUnicode=true&useSSL=false&serverTimezone=UTC&failOverReadOnly=false
+    volumes:
+      - ./nacos/logs:/home/nacos/logs
+
+  minio:
+    image: quay.io/minio/minio
+    container_name: minio
+    restart: always
+    command: server /data --console-address ':9001'
+    ports:
+      - 4000:9000
+      - 4001:9001
+    volumes:
+      - ./minio/data:/data
+      - ./minio/config:/root/.minio/
+    environment:
+      - MINIO_ROOT_USER=meeting_minio
+      - MINIO_ROOT_PASSWORD=minio123
+
+  seata:
+    image: seataio/seata-server:1.4.0
+    container_name: seata1.4.0
+    restart: always
+    depends_on:
+      - nacos
+      - mysql
+    ports:
+      - 18091:8091
+    environment:
+      - SEATA_IP=47.106.15.219
+      - SEATA_CONFIG_NAME=file:/root/seata-config/registry
+    volumes:
+      - ./seata1.4.0:/root/seata-config
+    
+  rocketmq-namesrv:
+    image: foxiswho/rocketmq:4.8.0
+    container_name: rocketmq-namesrv
+    restart: always
+    ports:
+      - 9876:9876
+    volumes:
+      - ./rocketmq/namesrv/logs:/home/rocketmq/rocketmq-4.8.0/logs 
+      - ./rocketmq/namesrv/store:/home/rocketmq/rocketmq-4.8.0/store
+    environment:
+      JAVA_OPTS: "-Duser.home=/opt"
+      JAVA_OPT_EXT: "-server -Xms256M -Xmx256M -Xmn128m"
+    command: ["sh","mqnamesrv"]
+    networks:
+      rocketmq:
+        aliases:
+          - rocketmq-namesrv
+  
+  rocketmq-broker:
+    image: foxiswho/rocketmq:4.8.0
+    container_name: rocketmq-broker
+    restart: always
+    ports:
+      - 10909:10909
+      - 10911:10911
+    volumes:
+      - ./rocketmq/broker/logs:/home/rocketmq/rocketmq-4.8.0/logs
+      - ./rocketmq/broker/store:/home/rocketmq/rocketmq-4.8.0/store
+      - ./rocketmq/broker/conf/broker.conf:/home/rocketmq/rocketmq-4.8.0/conf/broker.conf
+    environment:
+      JAVA_OPTS: "-Duser.home=/opt"
+      JAVA_OPT_EXT: "-server -Xms256m -Xmx256m -Xmn128m"
+    command: ["sh","mqbroker","-c","/home/rocketmq/rocketmq-4.8.0/conf/broker.conf","-n","rocketmq-namesrv:9876","autoCreateTopicEnable=true"]
+    depends_on:
+      - rocketmq-namesrv
+    networks:
+      rocketmq:
+        aliases:
+          - rocketmq-broker
+
+  rocketmq-console:
+    image: styletang/rocketmq-console-ng
+    container_name: mgi-rocketmq-console
+    restart: always
+    ports:
+      - 8180:8080
+    environment:
+      JAVA_OPTS: "-Drocketmq.namesrv.addr=rocketmq-namesrv:9876 -Dcom.rocketmq.sendMessageWithVIPChannel=false"
+    depends_on:
+      - rocketmq-namesrv
+    networks:
+      rocketmq:
+        aliases:
+          - rocketmq-console
+
+networks:
+  rocketmq:
+    name: rocketmq
+    driver: bridge
