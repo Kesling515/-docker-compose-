@@ -11,14 +11,14 @@ services:
       - ./mysql5.7/conf/my.cnf:/etc/my.cnf
       - ./mysql5.7/source:/docker-entrypoint-initdb.d/
     environment:
-      - MYSQL_ROOT_PASSWORD=bgi123456!@#
+      - MYSQL_ROOT_PASSWORD=root
       - TZ=Asia/Shanghai
     ports:
       - 3306:3306
 
   redis:
-    image: redis:4.0.1
-    container_name: redis4.0.1
+    image: redis:6.2
+    container_name: redis6.2
     restart: always
     volumes:
       - ./redis/data:/data
@@ -45,10 +45,10 @@ services:
       - PREFER_HOST_MODE=hostname
       - SPRING_DATASOURCE_PLATFORM=mysql
       - NACOS_AUTH_ENABLE=true
-      - MYSQL_SERVICE_HOST=47.106.15.219
-      - MYSQL_SERVICE_DB_NAME=mgi-ry-config
+      - MYSQL_SERVICE_HOST=192.168.8.1
+      - MYSQL_SERVICE_DB_NAME=config
       - MYSQL_SERVICE_USER=root
-      - MYSQL_SERVICE_PASSWORD=bgi123456!@#
+      - MYSQL_SERVICE_PASSWORD=root
       - MYSQL_SERVICE_PORT=3306
       - MYSQL_SERVICE_DB_PARAM=characterEncoding=utf8&connectTimeout=1000&socketTimeout=3000&autoReconnect=true&useUnicode=true&useSSL=false&serverTimezone=UTC&failOverReadOnly=false
     volumes:
@@ -66,7 +66,7 @@ services:
       - ./minio/data:/data
       - ./minio/config:/root/.minio/
     environment:
-      - MINIO_ROOT_USER=meeting_minio
+      - MINIO_ROOT_USER=minio
       - MINIO_ROOT_PASSWORD=minio123
 
   seata:
@@ -79,7 +79,7 @@ services:
     ports:
       - 18091:8091
     environment:
-      - SEATA_IP=47.106.15.219
+      - SEATA_IP=192.168.8.1
       - SEATA_CONFIG_NAME=file:/root/seata-config/registry
     volumes:
       - ./seata1.4.0:/root/seata-config
